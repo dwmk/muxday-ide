@@ -6,78 +6,115 @@ interface PreviewFrameProps {
   htmlCode: string
   cssCode: string
   jsCode: string
+  autoReload?: boolean
 }
 
-export function PreviewFrame({ htmlCode, cssCode, jsCode }: PreviewFrameProps) {
+export function PreviewFrame({ htmlCode, cssCode, jsCode, autoReload = true }: PreviewFrameProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
+  // Send messages (logs/errors) to parent
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.source === 'preview-frame-log') {
+        // Re-dispatch to window for the parent component to catch
+        window.dispatchEvent(new CustomEvent('console-message', { detail: event.data }))
+      }
+    }
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [])
+
   const srcDoc = useMemo(() => {
-    // Sanitize and create secure document
+    if (!autoReload) return ""
+
     return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https:; img-src * data: blob:; media-src * data: blob:; font-src * data:;">
   <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; }
+    /* Reset & Base Styles */
+    *, *::before, *::after { box-sizing: border-box; }
+    body { 
+      margin: 0; 
+      padding: 0; 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #ffffff;
+      color: #000000;
+      width: 100vw;
+      height: 100vh;
+      overflow-x: hidden;
+    }
+    /* User CSS */
     ${cssCode}
   </style>
 </head>
 <body>
   ${htmlCode}
   <script>
-    // Sandbox protection - prevent access to parent window
+    // ----------------------------------------
+    // MuxDay Preview Environment
+    // ----------------------------------------
     (function() {
-      'use strict';
-      
-      // Block access to parent
-      Object.defineProperty(window, 'parent', { value: window, writable: false });
-      Object.defineProperty(window, 'top', { value: window, writable: false });
-      Object.defineProperty(window, 'frameElement', { value: null, writable: false });
-      
-      // Console wrapper for debugging
-      const originalConsole = console;
-      window.console = {
-        log: (...args) => originalConsole.log('[Preview]', ...args),
-        error: (...args) => originalConsole.error('[Preview]', ...args),
-        warn: (...args) => originalConsole.warn('[Preview]', ...args),
-        info: (...args) => originalConsole.info('[Preview]', ...args),
-        clear: () => originalConsole.clear(),
+      // 1. Console Interception
+      const customConsole = {
+        log: (msg) => postLog('log', msg),
+        info: (msg) => postLog('info', msg),
+        warn: (msg) => postLog('warn', msg),
+        error: (msg) => postLog('error', msg),
+        clear: () => postLog('clear', null)
       };
 
-      // Error handling
-      window.onerror = function(msg, url, line, col, error) {
-        console.error('Error:', msg, 'at line', line);
-        return true;
+      function postLog(type, args) {
+        // Convert args to string if possible for safe transport
+        const safeArgs = Array.isArray(args) ? args.map(arg => {
+            try {
+                return typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
+            } catch(e) { return '[Circular/Unserializable]'; }
+        }) : [String(args)];
+
+        window.parent.postMessage({
+          source: 'preview-frame-log',
+          type,
+          message: safeArgs.join(' ')
+        }, '*');
+      }
+
+      // Overwrite global console
+      window.console = { ...window.console, ...customConsole };
+
+      // 2. Error Trapping
+      window.onerror = function(message, source, lineno, colno, error) {
+        customConsole.error(\`Runtime Error: \${message} (Line: \${lineno})\`);
+        return true; 
       };
 
+      window.addEventListener('unhandledrejection', function(event) {
+        customConsole.error(\`Unhandled Promise: \${event.reason}\`);
+      });
+
+      // 3. Execution
       try {
         ${jsCode}
-      } catch (e) {
-        console.error('Script Error:', e.message);
+      } catch (err) {
+        console.error(err.message);
       }
     })();
   </script>
 </body>
 </html>`
-  }, [htmlCode, cssCode, jsCode])
-
-  useEffect(() => {
-    if (iframeRef.current) {
-      iframeRef.current.srcdoc = srcDoc
-    }
-  }, [srcDoc])
+  }, [htmlCode, cssCode, jsCode, autoReload])
 
   return (
-    <iframe
-      ref={iframeRef}
-      title="Preview"
-      sandbox="allow-scripts allow-modals"
-      className="w-full h-full bg-white"
-      srcDoc={srcDoc}
-    />
+    <div className="w-full h-full bg-white relative">
+      <iframe
+        ref={iframeRef}
+        title="Preview"
+        className="w-full h-full border-none block"
+        sandbox="allow-scripts allow-modals allow-same-origin allow-forms"
+        srcDoc={srcDoc}
+      />
+    </div>
   )
 }
