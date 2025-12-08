@@ -332,7 +332,7 @@ const App = () => {
             <img 
               src="https://huanmux.github.io/assets/logo/favicon.png" 
               alt="HuanMux Logo" 
-              className="w-32 h-32 md:w-48 md:h-48 relative z-10 drop-shadow-2xl animate-float"
+              className="hero-logo w-32 h-32 md:w-48 md:h-48 relative z-10 drop-shadow-2xl animate-float"
             />
           </div>
           
@@ -347,7 +347,7 @@ const App = () => {
             className="mt-6 flex gap-4"
           >
              <span className="px-4 py-1 rounded-full border border-mux-orange/30 bg-mux-orange/10 text-mux-orange font-mono text-sm backdrop-blur-md">
-              EST. 202X
+              EST. 2025
             </span>
             <span className="px-4 py-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 font-mono text-sm backdrop-blur-md">
               SYSTEMS ONLINE
@@ -509,14 +509,14 @@ const App = () => {
         <footer className="mt-20 border-t border-white/10 pt-10 pb-20 text-center">
           <div className="flex justify-center items-center gap-2 mb-6 text-mux-orange">
             <Flame className="animate-bounce" />
-            <span className="font-bold tracking-widest">COMING SOON: CONSUMER HARDWARE</span>
+            <span className="font-bold tracking-widest">REACH FOR THE GREATEST HEIGHTS</span>
             <Flame className="animate-bounce" />
           </div>
           <p className="text-gray-500 text-sm">
-            &copy; {new Date().getFullYear()} HuanMux. Designed for the bold.
+            &copy; {new Date().getFullYear()} HuanMux
           </p>
           <a href="https://huanmux.github.io/socials" className="inline-block mt-4 text-white hover:text-mux-orange underline underline-offset-4 decoration-white/20 hover:decoration-mux-orange transition-all">
-            Contact Channels
+            Contact Us
           </a>
         </footer>
       </div>
